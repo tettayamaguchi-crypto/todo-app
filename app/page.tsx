@@ -1,13 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  User,
-  onAuthStateChanged,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut,
-} from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
 import TodoApp from '@/components/TodoApp';
 
@@ -16,11 +10,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // リダイレクト後の認証結果を処理（エラーのみキャッチ）
-    getRedirectResult(auth).catch((err) => {
-      console.error('リダイレクトログインエラー:', err);
-    });
-
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -30,7 +19,7 @@ export default function Home() {
 
   const handleSignIn = async () => {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
     } catch (err) {
       console.error('ログインエラー:', err);
     }
