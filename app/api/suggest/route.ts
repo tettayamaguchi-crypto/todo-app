@@ -10,6 +10,7 @@ const PERIOD_GUIDANCE: Record<Period, string> = {
   '6months': '期限は半年です。方向性を決める・情報収集する大まかなアクションを提案してください。',
   year: '期限は1年です。長期計画を立てる・必要なリソースや知識を調べるアクションを提案してください。',
   none: '期限は特に決まっていません。まず一歩踏み出すための取り掛かりやすいアクションを提案してください。',
+  custom: '期限日が設定されています。その期日までに完了できる具体的なアクションを提案してください。',
 };
 
 export async function POST(request: NextRequest) {
