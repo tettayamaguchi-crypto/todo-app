@@ -8,9 +8,13 @@ import TodoApp from '@/components/TodoApp';
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[Auth] Firebase initialized, waiting for auth state...');
     const unsubscribe = onAuthStateChanged(auth, (u) => {
+      console.log('[Auth] onAuthStateChanged:', u ? `logged in as ${u.email}` : 'not logged in');
       setUser(u);
       setLoading(false);
     });
@@ -18,10 +22,27 @@ export default function Home() {
   }, []);
 
   const handleSignIn = async () => {
+    console.log('[Auth] Login button clicked');
+    setLoginError(null);
+    setIsLoggingIn(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error('ログインエラー:', err);
+      console.log('[Auth] Calling signInWithPopup...');
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('[Auth] signInWithPopup success:', result.user.email);
+    } catch (err: unknown) {
+      console.error('[Auth] signInWithPopup error:', err);
+      const code = (err as { code?: string }).code ?? '';
+      if (code === 'auth/unauthorized-domain') {
+        setLoginError('このドメインはFirebaseの承認済みドメインに登録されていません。Firebase ConsoleでVercelのURLを追加してください。');
+      } else if (code === 'auth/popup-blocked') {
+        setLoginError('ポップアップがブロックされました。ブラウザのポップアップ許可設定を確認してください。');
+      } else if (code === 'auth/popup-closed-by-user') {
+        setLoginError(null); // ユーザーが自分で閉じた場合は何も表示しない
+      } else {
+        setLoginError(`ログインに失敗しました（${code || 'unknown error'}）`);
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -63,11 +84,15 @@ export default function Home() {
           <p className="text-gray-500 text-sm mb-8">期間を決めて、やりたいことを管理する</p>
           <button
             onClick={handleSignIn}
-            className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-gray-700 text-sm font-medium"
+            disabled={isLoggingIn}
+            className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-gray-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <GoogleIcon />
-            Google でログイン
+            {isLoggingIn ? 'ログイン中...' : 'Google でログイン'}
           </button>
+          {loginError && (
+            <p className="mt-4 text-xs text-red-500 max-w-xs mx-auto">{loginError}</p>
+          )}
         </div>
       </div>
     );
