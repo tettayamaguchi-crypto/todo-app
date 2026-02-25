@@ -5,13 +5,31 @@ import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/aut
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
 import TodoApp from '@/components/TodoApp';
 
+// アプリ内ブラウザの検知
+function detectInAppBrowser(): string | null {
+  if (typeof window === 'undefined') return null;
+  const ua = navigator.userAgent;
+  if (/Line\//i.test(ua)) return 'LINE';
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return 'Facebook';
+  if (/Instagram/i.test(ua)) return 'Instagram';
+  if (/Twitter/i.test(ua)) return 'Twitter';
+  if (/MicroMessenger/i.test(ua)) return 'WeChat';
+  if (/musical_ly|TikTok/i.test(ua)) return 'TikTok';
+  if (/YJApp/i.test(ua)) return 'Yahoo';
+  return null;
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [inAppBrowser, setInAppBrowser] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    setInAppBrowser(detectInAppBrowser());
+
     console.log('[Auth] Firebase initialized, waiting for auth state...');
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       console.log('[Auth] onAuthStateChanged:', u ? `logged in as ${u.email}` : 'not logged in');
@@ -37,7 +55,7 @@ export default function Home() {
       } else if (code === 'auth/popup-blocked') {
         setLoginError('ポップアップがブロックされました。ブラウザのポップアップ許可設定を確認してください。');
       } else if (code === 'auth/popup-closed-by-user') {
-        setLoginError(null); // ユーザーが自分で閉じた場合は何も表示しない
+        setLoginError(null);
       } else {
         setLoginError(`ログインに失敗しました（${code || 'unknown error'}）`);
       }
@@ -48,6 +66,29 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await signOut(auth);
+  };
+
+  // 外部ブラウザで開く
+  const openInBrowser = () => {
+    const url = window.location.href.split('?')[0].split('#')[0];
+    if (inAppBrowser === 'LINE') {
+      // LINE専用パラメータ：デフォルトブラウザで開く
+      window.location.href = url + '?openExternalBrowser=1';
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
+  // URLをコピー
+  const copyUrl = async () => {
+    const url = window.location.href.split('?')[0].split('#')[0];
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API非対応の場合は何もしない
+    }
   };
 
   if (!isFirebaseConfigured) {
@@ -77,6 +118,49 @@ export default function Home() {
   }
 
   if (!user) {
+    // アプリ内ブラウザの場合は専用画面を表示
+    if (inAppBrowser) {
+      const pageUrl = typeof window !== 'undefined'
+        ? window.location.href.split('?')[0].split('#')[0]
+        : '';
+
+      return (
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="text-center max-w-xs">
+            <div className="text-4xl mb-4">🌐</div>
+            <h1 className="text-lg font-semibold text-gray-800 mb-2">
+              ブラウザで開いてください
+            </h1>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              {inAppBrowser}などのアプリ内ブラウザではGoogleログインが利用できません。
+              下のボタンからブラウザで開いてください。
+            </p>
+            <button
+              onClick={openInBrowser}
+              className="w-full px-5 py-3 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors mb-3"
+            >
+              {inAppBrowser === 'LINE' ? 'デフォルトブラウザで開く' : 'ブラウザで開く'}
+            </button>
+            {/* URLコピー（フォールバック） */}
+            {pageUrl && (
+              <div>
+                <p className="text-xs text-gray-400 mb-2">
+                  うまく開けない場合はURLをコピーしてブラウザに貼り付けてください
+                </p>
+                <button
+                  onClick={copyUrl}
+                  className="w-full px-4 py-2.5 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  {copied ? '✓ コピーしました' : 'URLをコピー'}
+                </button>
+                <p className="mt-2 text-xs text-gray-300 break-all">{pageUrl}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
