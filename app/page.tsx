@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
-import TodoApp from '@/components/TodoApp';
 
 // アプリ内ブラウザの検知
 function detectInAppBrowser(): string | null {
@@ -20,35 +20,33 @@ function detectInAppBrowser(): string | null {
 }
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [inAppBrowser, setInAppBrowser] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setInAppBrowser(detectInAppBrowser());
 
-    console.log('[Auth] Firebase initialized, waiting for auth state...');
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      console.log('[Auth] onAuthStateChanged:', u ? `logged in as ${u.email}` : 'not logged in');
-      setUser(u);
-      setLoading(false);
+      if (u) {
+        router.push('/years');
+      } else {
+        setLoading(false);
+      }
     });
     return unsubscribe;
-  }, []);
+  }, [router]);
 
   const handleSignIn = async () => {
-    console.log('[Auth] Login button clicked');
     setLoginError(null);
     setIsLoggingIn(true);
     try {
-      console.log('[Auth] Calling signInWithPopup...');
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log('[Auth] signInWithPopup success:', result.user.email);
+      await signInWithPopup(auth, googleProvider);
+      // onAuthStateChanged will handle redirect
     } catch (err: unknown) {
-      console.error('[Auth] signInWithPopup error:', err);
       const code = (err as { code?: string }).code ?? '';
       if (code === 'auth/unauthorized-domain') {
         setLoginError('このドメインはFirebaseの承認済みドメインに登録されていません。Firebase ConsoleでVercelのURLを追加してください。');
@@ -64,15 +62,10 @@ export default function Home() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut(auth);
-  };
-
   // 外部ブラウザで開く
   const openInBrowser = () => {
     const url = window.location.href.split('?')[0].split('#')[0];
     if (inAppBrowser === 'LINE') {
-      // LINE専用パラメータ：デフォルトブラウザで開く
       window.location.href = url + '?openExternalBrowser=1';
     } else {
       window.open(url, '_blank');
@@ -99,11 +92,7 @@ export default function Home() {
           <p className="text-gray-500 text-sm mb-4">
             プロジェクトルートに <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">.env.local</code> を作成し、Firebase の設定値を入力してください。
           </p>
-          <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs text-gray-600 overflow-x-auto whitespace-pre">{`cp .env.local.example .env.local
-# .env.local を編集して Firebase の値を入力`}</pre>
-          <p className="text-gray-400 text-xs mt-3">
-            詳しい手順は <code className="bg-gray-100 px-1 rounded">README.md</code> を参照してください。
-          </p>
+          <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs text-gray-600 overflow-x-auto whitespace-pre">{`cp .env.local.example .env.local\n# .env.local を編集して Firebase の値を入力`}</pre>
         </div>
       </div>
     );
@@ -117,72 +106,67 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    // アプリ内ブラウザの場合は専用画面を表示
-    if (inAppBrowser) {
-      const pageUrl = typeof window !== 'undefined'
-        ? window.location.href.split('?')[0].split('#')[0]
-        : '';
-
-      return (
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="text-center max-w-xs">
-            <div className="text-4xl mb-4">🌐</div>
-            <h1 className="text-lg font-semibold text-gray-800 mb-2">
-              ブラウザで開いてください
-            </h1>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              {inAppBrowser}などのアプリ内ブラウザではGoogleログインが利用できません。
-              下のボタンからブラウザで開いてください。
-            </p>
-            <button
-              onClick={openInBrowser}
-              className="w-full px-5 py-3 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors mb-3"
-            >
-              {inAppBrowser === 'LINE' ? 'デフォルトブラウザで開く' : 'ブラウザで開く'}
-            </button>
-            {/* URLコピー（フォールバック） */}
-            {pageUrl && (
-              <div>
-                <p className="text-xs text-gray-400 mb-2">
-                  うまく開けない場合はURLをコピーしてブラウザに貼り付けてください
-                </p>
-                <button
-                  onClick={copyUrl}
-                  className="w-full px-4 py-2.5 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  {copied ? '✓ コピーしました' : 'URLをコピー'}
-                </button>
-                <p className="mt-2 text-xs text-gray-300 break-all">{pageUrl}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
+  // アプリ内ブラウザの場合は専用画面を表示
+  if (inAppBrowser) {
+    const pageUrl = typeof window !== 'undefined'
+      ? window.location.href.split('?')[0].split('#')[0]
+      : '';
 
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-800 mb-1">やりたいことリスト</h1>
-          <p className="text-gray-500 text-sm mb-8">期間を決めて、やりたいことを管理する</p>
+        <div className="text-center max-w-xs">
+          <div className="text-4xl mb-4">🌐</div>
+          <h1 className="text-lg font-semibold text-gray-800 mb-2">
+            ブラウザで開いてください
+          </h1>
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            {inAppBrowser}などのアプリ内ブラウザではGoogleログインが利用できません。
+            下のボタンからブラウザで開いてください。
+          </p>
           <button
-            onClick={handleSignIn}
-            disabled={isLoggingIn}
-            className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-gray-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={openInBrowser}
+            className="w-full px-5 py-3 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors mb-3"
           >
-            <GoogleIcon />
-            {isLoggingIn ? 'ログイン中...' : 'Google でログイン'}
+            {inAppBrowser === 'LINE' ? 'デフォルトブラウザで開く' : 'ブラウザで開く'}
           </button>
-          {loginError && (
-            <p className="mt-4 text-xs text-red-500 max-w-xs mx-auto">{loginError}</p>
+          {pageUrl && (
+            <div>
+              <p className="text-xs text-gray-400 mb-2">
+                うまく開けない場合はURLをコピーしてブラウザに貼り付けてください
+              </p>
+              <button
+                onClick={copyUrl}
+                className="w-full px-4 py-2.5 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {copied ? '✓ コピーしました' : 'URLをコピー'}
+              </button>
+              <p className="mt-2 text-xs text-gray-300 break-all">{pageUrl}</p>
+            </div>
           )}
         </div>
       </div>
     );
   }
 
-  return <TodoApp user={user} onSignOut={handleSignOut} />;
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">ことしやるぞ</h1>
+        <p className="text-gray-500 text-sm mb-8">今年やりたいことを、月ごとに管理しよう</p>
+        <button
+          onClick={handleSignIn}
+          disabled={isLoggingIn}
+          className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 transition-all text-gray-700 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <GoogleIcon />
+          {isLoggingIn ? 'ログイン中...' : 'Google でログイン'}
+        </button>
+        {loginError && (
+          <p className="mt-4 text-xs text-red-500 max-w-xs mx-auto">{loginError}</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function GoogleIcon() {

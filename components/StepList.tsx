@@ -31,7 +31,7 @@ export default function StepList({ steps, onChange }: Props) {
   return (
     <div>
       {/* ラベル */}
-      <p className="text-xs text-gray-400 mb-1.5">やり切るためのステップ</p>
+      <p className="text-xs text-gray-400 mb-1.5">ネクストアクション</p>
 
       {/* ステップ一覧 */}
       {steps.map((step) => (
@@ -49,7 +49,7 @@ export default function StepList({ steps, onChange }: Props) {
               type="text"
               value={step.text}
               onChange={(e) => update(step.id, { text: e.target.value })}
-              placeholder="ステップを入力..."
+              placeholder="アクションを入力..."
               className={`flex-1 min-w-0 text-xs bg-transparent focus:outline-none ${
                 step.completed ? 'line-through text-gray-400' : 'text-gray-700'
               }`}
@@ -84,7 +84,7 @@ export default function StepList({ steps, onChange }: Props) {
           type="text"
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
-          placeholder="ステップを追加..."
+          placeholder="アクションを追加..."
           className="flex-1 text-xs text-gray-500 placeholder-gray-300 bg-transparent focus:outline-none"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

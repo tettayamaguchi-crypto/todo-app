@@ -1,13 +1,13 @@
-export type Period =
-  | 'week'
-  | 'month'
-  | '3months'
-  | '6months'
-  | 'year'
-  | 'none'
-  | 'custom'; // 日付を指定
+export type Category =
+  | 'travel'
+  | 'skill'
+  | 'health'
+  | 'hobby'
+  | 'work'
+  | 'relationships'
+  | 'other';
 
-export type FilterPeriod = Period | 'all';
+export type Status = 'notStarted' | 'inProgress' | 'completed';
 
 export interface Step {
   id: string;
@@ -16,88 +16,76 @@ export interface Step {
   dueDate?: string; // "YYYY-MM-DD"
 }
 
-export interface Todo {
+export interface Item {
   id: string;
-  text: string;
-  period: Period;
-  customDueDate?: string; // "YYYY-MM-DD"（period === 'custom' のとき使用）
-  completed: boolean;
-  createdAt: number;
+  title: string;
+  category: Category;
+  status: Status;
+  targetMonth?: number; // 1-12
+  steps: Step[];
   nextActions?: string[];
-  steps?: Step[];
+  createdAt: number;
 }
 
-export const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-  { value: 'week', label: '1週間' },
-  { value: 'month', label: '1ヶ月' },
-  { value: '3months', label: '3ヶ月' },
-  { value: '6months', label: '半年' },
-  { value: 'year', label: '1年' },
-  { value: 'none', label: '期限なし' },
-  { value: 'custom', label: '日付を指定' },
-];
+export interface YearDoc {
+  id: string; // e.g. "2026"
+  year: number;
+  createdAt: number;
+  retrospectiveMemo?: string;
+}
 
-export const PERIOD_LABELS: Record<Period, string> = {
-  week: '1週間',
-  month: '1ヶ月',
-  '3months': '3ヶ月',
-  '6months': '半年',
-  year: '1年',
-  none: '期限なし',
-  custom: '日付指定',
+export const CATEGORY_LABELS: Record<Category, string> = {
+  travel: '旅行',
+  skill: 'スキル',
+  health: '健康',
+  hobby: '趣味',
+  work: '仕事',
+  relationships: '人間関係',
+  other: 'その他',
 };
 
-export const FILTER_OPTIONS: { value: FilterPeriod; label: string }[] = [
-  { value: 'all', label: 'すべて' },
-  ...PERIOD_OPTIONS,
-];
-
-// 期間ごとの日数（'custom' を除く）
-const PERIOD_DAYS: Record<Exclude<Period, 'none' | 'custom'>, number> = {
-  week: 7,
-  month: 30,
-  '3months': 90,
-  '6months': 180,
-  year: 365,
+export const CATEGORY_COLORS: Record<
+  Category,
+  { bg: string; text: string; bar: string; border: string }
+> = {
+  travel:        { bg: 'bg-blue-100',   text: 'text-blue-700',   bar: 'bg-blue-400',   border: 'border-blue-200' },
+  skill:         { bg: 'bg-purple-100', text: 'text-purple-700', bar: 'bg-purple-400', border: 'border-purple-200' },
+  health:        { bg: 'bg-green-100',  text: 'text-green-700',  bar: 'bg-green-400',  border: 'border-green-200' },
+  hobby:         { bg: 'bg-orange-100', text: 'text-orange-700', bar: 'bg-orange-400', border: 'border-orange-200' },
+  work:          { bg: 'bg-gray-100',   text: 'text-gray-600',   bar: 'bg-gray-400',   border: 'border-gray-200' },
+  relationships: { bg: 'bg-pink-100',   text: 'text-pink-700',   bar: 'bg-pink-400',   border: 'border-pink-200' },
+  other:         { bg: 'bg-slate-100',  text: 'text-slate-600',  bar: 'bg-slate-300',  border: 'border-slate-200' },
 };
 
-/** 残り日数を返す。期限なし・custom 未設定は null */
-export function getRemainingDays(
-  todo: Pick<Todo, 'period' | 'createdAt' | 'customDueDate'>
-): number | null {
-  if (todo.period === 'none') return null;
+export const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
+  { value: 'travel',        label: '旅行' },
+  { value: 'skill',         label: 'スキル' },
+  { value: 'health',        label: '健康' },
+  { value: 'hobby',         label: '趣味' },
+  { value: 'work',          label: '仕事' },
+  { value: 'relationships', label: '人間関係' },
+  { value: 'other',         label: 'その他' },
+];
 
-  if (todo.period === 'custom') {
-    if (!todo.customDueDate) return null;
-    // 期限日の終わり（23:59:59）まで
-    const dueMs = new Date(todo.customDueDate + 'T23:59:59').getTime();
-    return Math.ceil((dueMs - Date.now()) / 86_400_000);
-  }
+export const STATUS_LABELS: Record<Status, string> = {
+  notStarted: '未着手',
+  inProgress: '進行中',
+  completed:  '完了',
+};
 
-  const elapsedDays = Math.floor((Date.now() - todo.createdAt) / 86_400_000);
-  return PERIOD_DAYS[todo.period] - elapsedDays;
-}
+export const STATUS_COLORS: Record<Status, { bg: string; text: string }> = {
+  notStarted: { bg: 'bg-gray-100',  text: 'text-gray-500' },
+  inProgress: { bg: 'bg-blue-50',   text: 'text-blue-600' },
+  completed:  { bg: 'bg-green-50',  text: 'text-green-600' },
+};
 
-/** 残り日数のラベル */
-export function getRemainingLabel(days: number | null): string | null {
-  if (days === null) return null;
-  if (days <= 0) return '期限切れ';
-  if (days === 1) return '残り1日';
-  return `残り${days}日`;
-}
+export const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: 'notStarted', label: '未着手' },
+  { value: 'inProgress', label: '進行中' },
+  { value: 'completed',  label: '完了' },
+];
 
-/** 残り日数に応じた Tailwind テキストカラークラス */
-export function getRemainingColor(days: number | null): string {
-  if (days === null) return 'text-gray-300';
-  if (days <= 0) return 'text-red-600 font-medium';
-  if (days <= 3) return 'text-red-500 font-medium';
-  if (days <= 7) return 'text-red-400';
-  if (days <= 30) return 'text-amber-500';
-  return 'text-gray-400';
-}
-
-/** カスタム日付を "M/D まで" 形式にフォーマット */
-export function formatCustomDate(dateStr: string): string {
-  const [, m, d] = dateStr.split('-');
-  return `${parseInt(m)}/${parseInt(d)}まで`;
-}
+export const MONTH_NAMES = [
+  '1月', '2月', '3月', '4月', '5月', '6月',
+  '7月', '8月', '9月', '10月', '11月', '12月',
+];
